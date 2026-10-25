@@ -1,0 +1,5 @@
+# Disposable read-only connection check. Do not use this overlay to start workers.
+services:
+  api:
+    env_file:
+      - .env.odoo-test

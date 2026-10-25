@@ -1,0 +1,105 @@
+# Initial operational deployment. Review billing before applying this Blueprint.
+# Repository root must be opsdemo-platform, not its parent folder.
+services:
+  - type: web
+    name: opsdemo-operations
+    runtime: docker
+    region: frankfurt
+    plan: 1c-2g
+    dockerfilePath: ./infra/render.Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/ready
+    preDeployCommand: python manage.py migrate --noinput && python manage.py bootstrap_roles
+    autoDeployTrigger: 'off'
+    envVars:
+      - fromGroup: opsdemo-runtime
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: opsdemo-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: opsdemo-queue
+          type: keyvalue
+          property: connectionString
+  - type: worker
+    name: opsdemo-worker
+    runtime: docker
+    region: frankfurt
+    plan: 0.5c-512mb
+    dockerfilePath: ./infra/backend.Dockerfile
+    dockerContext: .
+    dockerCommand: celery -A config.celery:app worker --loglevel=INFO --concurrency=1
+    autoDeployTrigger: 'off'
+    envVars:
+      - fromGroup: opsdemo-runtime
+      - key: DJANGO_SECRET_KEY
+        fromService:
+          name: opsdemo-operations
+          type: web
+          envVarKey: DJANGO_SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: opsdemo-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: opsdemo-queue
+          type: keyvalue
+          property: connectionString
+  - type: worker
+    name: opsdemo-scheduler
+    runtime: docker
+    region: frankfurt
+    plan: 0.5c-512mb
+    numInstances: 1
+    dockerfilePath: ./infra/backend.Dockerfile
+    dockerContext: .
+    dockerCommand: celery -A config.celery:app beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule
+    autoDeployTrigger: 'off'
+    envVars:
+      - fromGroup: opsdemo-runtime
+      - key: DJANGO_SECRET_KEY
+        fromService:
+          name: opsdemo-operations
+          type: web
+          envVarKey: DJANGO_SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: opsdemo-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: opsdemo-queue
+          type: keyvalue
+          property: connectionString
+  - type: keyvalue
+    name: opsdemo-queue
+    region: frankfurt
+    plan: 256mb
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+databases:
+  - name: opsdemo-postgres
+    region: frankfurt
+    plan: 0.5c-1g
+    databaseName: opsdemo
+    user: opsdemo
+    postgresMajorVersion: '17'
+    diskSizeGB: 5
+    ipAllowList: []
+envVarGroups:
+  - name: opsdemo-runtime
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DJANGO_ALLOWED_HOSTS
+        value: localhost,127.0.0.1
+      - key: BUSINESS_TIMEZONE
+        value: Africa/Cairo
+      - key: REQUIRE_STAFF_MFA
+        value: 'true'
+      - key: TRUST_PROXY_CLIENT_IP
+        value: 'true'

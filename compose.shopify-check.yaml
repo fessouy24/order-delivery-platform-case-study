@@ -1,0 +1,6 @@
+# Use only with scripts/check-shopify.ps1 for a disposable read-only check.
+# No credentials are added to the running worker or scheduler.
+services:
+  api:
+    env_file:
+      - .env.shopify-test

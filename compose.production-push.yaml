@@ -1,0 +1,7 @@
+# Add only after the company Firebase project and private server key are configured.
+services:
+  worker:
+    env_file:
+      - .env.push
+    volumes:
+      - ./.local-runtime/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro

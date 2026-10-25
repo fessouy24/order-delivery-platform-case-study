@@ -1,0 +1,64 @@
+name: Platform checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: opsdemo
+          POSTGRES_USER: opsdemo
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd 'pg_isready -U opsdemo'
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings_postgres_test
+      ODOO_TRIAL_READ_ONLY: 'false'
+      APP_ENV: development
+      DJANGO_SECRET_KEY: ci-only-not-a-deployment-key-000000000000000000000000000000
+      POSTGRES_DB: opsdemo
+      POSTGRES_USER: opsdemo
+      POSTGRES_PASSWORD: ci-only-password
+      POSTGRES_HOST: 127.0.0.1
+      REDIS_URL: redis://127.0.0.1:6379/0
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r requirements-dev.txt
+      - run: python ../scripts/audit-source.py
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py migrate --noinput
+      - run: pytest -q --junitxml=test-results.xml
+      - run: python -m ruff check --config pyproject.toml .
+      - run: python -m ruff format --check --config pyproject.toml .
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build

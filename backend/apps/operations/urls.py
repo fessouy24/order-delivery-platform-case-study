@@ -1,0 +1,73 @@
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
+from . import (
+    courier_cash,
+    courier_tracking,
+    departments,
+    finance_completion,
+    integrations,
+    market,
+    occasional,
+    photos,
+    production_work,
+    reports,
+    shopify_fulfillment,
+    views,
+    workbook_report,
+)
+
+router = DefaultRouter(use_regex_path=False)
+for prefix, view, basename in [
+    ("users", views.Users, "users"),
+    ("areas", views.Areas, "areas"),
+    ("area-aliases", views.Aliases, "aliases"),
+    ("customers", views.Customers, "customers"),
+    ("addresses", views.Addresses, "addresses"),
+    ("items", views.Items, "items"),
+    ("recipes", views.Recipes, "recipes"),
+    ("locations", views.Locations, "locations"),
+    ("policies", views.Policies, "policies"),
+    ("inventory", views.Inventory, "inventory"),
+    ("orders", views.Orders, "orders"),
+    ("mappings", views.Mappings, "mappings"),
+]:
+    router.register(prefix, view, basename=basename)
+
+urlpatterns = [
+    path("reports/orders/table/", workbook_report.table),
+    path("courier/location/", courier_tracking.mine),
+    path("courier/locations/", courier_tracking.board),
+    path("departments/finance/orders/<uuid:order_id>/complete/", finance_completion.completion),
+    path("departments/finance/orders/<uuid:order_id>/retry/", finance_completion.retry),
+    path("courier/cash/", courier_cash.my_cash),
+    path("departments/finance/couriers/<uuid:courier_id>/complete/", courier_cash.complete),
+    path("integrations/shopify/<uuid:order_id>/fulfillment/retry/", shopify_fulfillment.retry),
+    path("departments/warehouse/", departments.warehouse_board),
+    path("departments/warehouse/batch/", departments.register_batch),
+    path("departments/finance/", departments.finance_board),
+    path("production/work/", production_work.work_list),
+    path("production/work/<uuid:work_id>/made/", production_work.made),
+    path("production/device/", production_work.device),
+    path("occasional/", occasional.requests),
+    path("occasional/<uuid:request_id>/schedule/", occasional.schedule),
+    path("market/pending/", market.inbox),
+    path("market/<uuid:quotation_id>/schedule/", market.schedule),
+    path("items/<uuid:item_id>/photo/", photos.item_photo),
+    path("reports/orders/", reports.order_export),
+    path("documents/<uuid:order_id>/dispatch/", reports.dispatch_document),
+    path("", include(router.urls)),
+    path("dashboard/", views.dashboard),
+    path("couriers/", views.couriers),
+    path("warehouse/", views.warehouse),
+    path("production/", views.production),
+    path("production/<uuid:line_id>/complete/", views.produce),
+    path("alerts/", views.alerts),
+    path("alerts/<uuid:alert_id>/read/", views.read_alert),
+    path("audit/", views.audit_log),
+    path("documents/preparation/", views.preparation_document),
+    path("integrations/", integrations.integration_status),
+    path("integrations/odoo/<uuid:order_id>/retry/", integrations.retry_odoo),
+    path("integrations/shopify/<uuid:event_id>/retry/", integrations.retry_shopify),
+    path("integrations/shopify/webhook/", integrations.shopify_webhook),
+]

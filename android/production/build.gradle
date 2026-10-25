@@ -1,0 +1,27 @@
+plugins { id 'com.android.application' }
+def companyUrl = providers.gradleProperty('companyServerUrl').orElse('').get()
+def keyPath=System.getenv('ANDROID_KEYSTORE_PATH')
+if(companyUrl && !(companyUrl ==~ /^https:\/\/[A-Za-z0-9.-]+(?::\d+)?\/?$/))throw new GradleException('Use a company HTTPS origin.')
+android {
+ namespace 'com.opsdemo.operations'
+ compileSdk 36
+ defaultConfig {applicationId 'com.opsdemo.production';minSdk 26;targetSdk 36;versionCode 1;versionName '0.1.0'}
+ buildFeatures {buildConfig true;resValues true}
+ compileOptions {sourceCompatibility JavaVersion.VERSION_17;targetCompatibility JavaVersion.VERSION_17}
+ sourceSets {main {java.srcDirs=['src/main/java','../app/src/main/java'];java.exclude '**/MainActivity.java';res.srcDirs=['../app/src/main/res']}}
+ signingConfigs {
+  debug {storeFile rootProject.file('../.local-runtime/android-debug.keystore');storePassword 'android';keyAlias 'androiddebugkey';keyPassword 'android'}
+  if(keyPath)company {storeFile file(keyPath);storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD');keyAlias System.getenv('ANDROID_KEY_ALIAS');keyPassword System.getenv('ANDROID_KEY_PASSWORD')}
+ }
+ buildTypes {
+  debug {applicationIdSuffix '.trial';buildConfigField 'String','SERVER_URL','"http://localhost:8080"';resValue 'string','app_name','OPSDEMO Production Trial'}
+  release {buildConfigField 'String','SERVER_URL','"'+companyUrl.replaceAll('/$','')+'"';resValue 'string','app_name','OPSDEMO Production';if(keyPath)signingConfig signingConfigs.company}
+ }
+}
+dependencies {implementation 'com.google.firebase:firebase-messaging:26.0.0'}
+if(file('google-services.json').exists())apply plugin:'com.google.gms.google-services'
+tasks.configureEach {if(name=='preReleaseBuild')doFirst{
+ if(!companyUrl)throw new GradleException('Set companyServerUrl for the production employee app.')
+ for(key in ['ANDROID_KEYSTORE_PATH','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD'])if(!System.getenv(key))throw new GradleException('Company signing configuration is missing '+key)
+ if(!file('google-services.json').exists())throw new GradleException('Company Firebase configuration is required for reliable background production alerts.')
+}}

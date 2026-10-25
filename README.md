@@ -1,59 +1,91 @@
 # Order-to-Delivery Operations Platform
 
-A custom operations platform for a small consumer-goods business, covering the journey from order intake to preparation, delivery and financial reconciliation.
+A bilingual operations platform connecting order intake, inventory, warehouse preparation,
+courier delivery, production and financial reconciliation. Built by Youssef Haitham.
 
-## The problem
+This repository contains the **sanitized application source**, including the backend,
+web interface, Android apps, Windows wrapper, automated tests and deployment templates.
+Company branding, operational data and account-specific setup are excluded. Demo assets
+and fixtures are synthetic. This is a portfolio release, not a claim of production readiness.
 
-Online orders, business-customer purchase orders, warehouse preparation, courier updates and financial follow-up were split across spreadsheets and separate tools. Staff needed clear, department-specific screens and a consistent order history.
+## Capabilities
 
-## My contribution
+- Shopify order intake and payment/delivery-gated fulfilment.
+- Odoo quotation intake and sales-order/draft-invoice reconciliation.
+- Stock reservations, batches, expiry dates and warehouse dispatch quantities.
+- Courier Android app with order actions, product photos and permission-based location sharing.
+- Production Android app for made-to-order work and shortages.
+- Finance cash handovers, courier balances and accepted-quantity reconciliation.
+- Arabic/English screens, department permissions, audit trails and spreadsheet exports.
 
-Designed and implemented the application workflows, database, role permissions, bilingual interfaces, integration adapters, native Android applications, Windows desktop wrapper, reporting and deployment tooling. Development included AI-assisted implementation and iterative testing with operational users.
-
-## Implemented capabilities
-
-- Shopify order intake and delivery/payment-gated silent fulfilment.
-- Odoo market quotation intake and sales-order/draft-invoice reconciliation.
-- Stock reservations, dated batches, expiry visibility, preparation and actual sent/received quantities.
-- A courier Android app with product photos, simple status actions, WhatsApp draft links, remembered sign-in and permission-based delivery location sharing.
-- A separate Production Android app for made-to-order work and shortages; background push is a configured integration.
-- Finance cash handovers, courier balances and market receipt reconciliation.
-- Arabic/English interfaces, department permissions, audit trails and spreadsheet-style reporting.
-- Docker deployment configuration, automated checks and backup/restore tooling.
-
-## Stack
-
-Django REST Framework · PostgreSQL · Redis · Celery · React · TypeScript · Android Java · Windows WebView2 · Docker · Caddy
-
-## Order workflow
+## Architecture
 
 ```mermaid
-flowchart TD
-    A[Online, market or manually entered order] --> B[Supply Chain schedules delivery]
-    B --> C[Warehouse prepares and records quantities]
-    C --> D[Assigned courier receives delivery]
-    D --> E{Delivery outcome}
-    E -->|Postponed or no answer| B
-    E -->|Delivered| F{Order type / payment}
-    F -->|Prepaid website| G[Eligible online fulfilment]
-    F -->|Website cash on delivery| H[Finance confirms cash handover]
-    H --> M[Eligible silent fulfilment and accounting]
-    F -->|Market| I[Finance confirms accepted quantities]
-    G --> R[Finance review and completion]
-    R --> J[Odoo accounting reconciliation]
-    M --> J
-    I --> J
-    J --> K[Verified sales order and draft invoice]
+flowchart LR
+    Shopify --> API[Django REST API]
+    Odoo <--> API
+    Web[React / Windows WebView2] --> API
+    Courier[Courier Android app] --> API
+    Production[Production Android app] --> API
+    API --> DB[(PostgreSQL)]
+    DB <--> Jobs[Celery workers]
+    Redis[(Redis)] <--> Jobs
+    Jobs --> Shopify
+    Jobs --> Odoo
 ```
 
-## Verification and delivery status
+**Stack:** Django REST Framework, PostgreSQL, Redis, Celery, React, TypeScript,
+native Android Java, Windows WebView2, Docker and Caddy.
 
-The system has been exercised in a local container environment, including PostgreSQL-backed automated tests, controlled provider tests, real Android trials and an isolated database restore. Production hosting, final employee acceptance and some external setup remain separate release gates. No claim of production scale, measured business savings or completed live rollout is made.
+## Run locally
 
-## Confidentiality
+Requires Docker with Linux containers and Compose v2. The initialization script uses PowerShell 7.
 
-This public description contains no employer name, customer records, actual order values, credentials, proprietary images or source code. The implementation repository remains private. A demonstration for prospective clients should use synthetic data and permission-cleared branding/assets.
+```powershell
+./scripts/init-local.ps1
+docker compose config --quiet
+docker compose up --build -d
+docker compose exec api python manage.py bootstrap_roles
+docker compose exec api python manage.py createsuperuser
+```
 
-## Services this project demonstrates
+Open http://localhost:8080 and sign in with the account you created. No default accounts
+or business records are distributed. Configure warehouses, products, roles and inventory
+in your own environment. The initialization script generates fresh local secrets.
 
-Custom internal systems · inventory and delivery workflows · Shopify/Odoo integration · Android business apps · bilingual dashboards · reporting and automation.
+External integrations are optional and unconfigured. Shopify and Odoo credentials, URLs,
+customer/product mappings, and any Firebase setup must come from accounts you control.
+External writes are disabled by default in `.env.example`. Never use production accounts for tests.
+
+## Repository map
+
+| Path | Contents |
+| --- | --- |
+| `backend/` | API, permissions, workflows, integrations, migrations and tests |
+| `frontend/` | React/TypeScript department workspaces |
+| `android/` | Courier and production apps |
+| `windows/` | WebView2 desktop wrapper |
+| `infra/` | Container and proxy configuration |
+| `scripts/` | Initialization, builds, backup and source-audit tools |
+| `docs/` | Public setup, security and verification notes |
+
+## Development checks
+
+From `backend/`, install `requirements-dev.txt`, supply isolated test environment values,
+and run `python manage.py check`, `pytest -q`, and `python -m ruff check .`.
+PostgreSQL is required for deployment and concurrency testing. The explicit
+`config.settings_test` configuration supports portable SQLite checks; it is not a deployment setting.
+
+From `frontend/`, use the pinned package manager: `pnpm install --frozen-lockfile` and `pnpm build`.
+GitHub Actions defines PostgreSQL-backed backend checks and the frontend build.
+See [verification](docs/verification.md) for checks performed on this sanitized copy.
+
+## Further reading
+
+- [Public case study](PORTFOLIO.md)
+- [Integration configuration](docs/integrations.md)
+- [Deployment](docs/deployment.md) and [mobile builds](docs/mobile-distribution.md)
+- [Sanitization scope](docs/public-source.md) and [security](SECURITY.md)
+
+No Shopify or Odoo account access, customer records, store data or third-party proprietary
+code is included. Third-party dependencies retain their own licenses; bundled fonts include their OFL notice.

@@ -1,0 +1,80 @@
+name: opsdemo-trial
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: infra/backend.Dockerfile
+  env_file: .env.trial
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Configure POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Configure POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7.4-alpine
+    command: [redis-server, --appendonly, 'yes']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  migrate:
+    <<: *backend
+    command: [sh, -c, 'python manage.py migrate --noinput && python manage.py collectstatic --noinput']
+    volumes:
+      - static_data:/app/staticfiles
+  api:
+    <<: *backend
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -m, apps.core.healthprobe]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+  worker:
+    <<: *backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: [celery, -A, config.celery:app, worker, --loglevel=INFO, --concurrency=1]
+  scheduler:
+    <<: *backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: [celery, -A, config.celery:app, beat, --loglevel=INFO, --schedule=/tmp/celerybeat-schedule]
+  web:
+    build:
+      context: .
+      dockerfile: infra/frontend.Dockerfile
+    ports:
+      - '127.0.0.1:8080:80'
+    volumes:
+      - static_data:/srv/static:ro
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  postgres_data:
+  redis_data:
+  static_data:
+  media_data:

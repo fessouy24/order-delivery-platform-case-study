@@ -1,0 +1,33 @@
+{
+  "market": "Demo Retailer",
+  "partial": true,
+  "source": "Synthetic portfolio fixture",
+  "missing_codes_in_range": [],
+  "issues": [],
+  "records": [
+    {
+      "branch_code": "DS1",
+      "full_address": "SYNTHETIC ONLY \u2014 Example branch 1",
+      "original_area": "Example area",
+      "maps_url": "",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "branch_code": "DS2",
+      "full_address": "SYNTHETIC ONLY \u2014 Example branch 2",
+      "original_area": "Example area",
+      "maps_url": "",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "branch_code": "DS3",
+      "full_address": "SYNTHETIC ONLY \u2014 Example branch 3",
+      "original_area": "Example area",
+      "maps_url": "",
+      "latitude": null,
+      "longitude": null
+    }
+  ]
+}

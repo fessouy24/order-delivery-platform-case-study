@@ -1,0 +1,5 @@
+# Local API-only Training reads. Workers and the scheduler receive no Odoo credentials.
+services:
+  api:
+    env_file:
+      - .env.market-trial
